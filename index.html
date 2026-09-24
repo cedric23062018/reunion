@@ -341,6 +341,7 @@
       try {
         const res = await fetch(`/api/meetings/${id}`);
         if (!res.ok) {
+          alert("Cette réunion n'a pas été trouvée (le serveur s'est peut-être mis en veille). Vous pouvez recréer un sondage ci-dessous.");
           showCreateView();
           return;
         }

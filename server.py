@@ -8,9 +8,49 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
+import json
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(BASE_DIR, "meetings.db")
+JSON_FILE = os.path.join(BASE_DIR, "meetings_backup.json")
 STATIC_INDEX = os.path.join(BASE_DIR, "static", "index.html")
+
+def save_json_backup():
+    try:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, title, description, created_at FROM meetings")
+        meetings = cursor.fetchall()
+        cursor.execute("SELECT id, meeting_id, date_str, start_time, end_time FROM slots")
+        slots = cursor.fetchall()
+        cursor.execute("SELECT id, meeting_id, slot_id, participant_name, status FROM responses")
+        responses = cursor.fetchall()
+        conn.close()
+        
+        data = {"meetings": meetings, "slots": slots, "responses": responses}
+        with open(JSON_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print("Backup error:", e)
+
+def load_json_backup():
+    if not os.path.exists(JSON_FILE):
+        return
+    try:
+        with open(JSON_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        for m in data.get("meetings", []):
+            cursor.execute("INSERT OR IGNORE INTO meetings (id, title, description, created_at) VALUES (?, ?, ?, ?)", (m[0], m[1], m[2], m[3]))
+        for s in data.get("slots", []):
+            cursor.execute("INSERT OR IGNORE INTO slots (id, meeting_id, date_str, start_time, end_time) VALUES (?, ?, ?, ?, ?)", (s[0], s[1], s[2], s[3], s[4]))
+        for r in data.get("responses", []):
+            cursor.execute("INSERT OR IGNORE INTO responses (id, meeting_id, slot_id, participant_name, status) VALUES (?, ?, ?, ?, ?)", (r[0], r[1], r[2], r[3], r[4]))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print("Restore error:", e)
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -48,6 +88,7 @@ def init_db():
     """)
     conn.commit()
     conn.close()
+    load_json_backup()
 
 init_db()
 
@@ -85,6 +126,7 @@ def create_meeting(meeting: MeetingCreate):
     
     conn.commit()
     conn.close()
+    save_json_backup()
     return {"id": meeting_id, "url": f"/meeting/{meeting_id}"}
 
 @app.post("/api/meetings/{meeting_id}/slots")
@@ -101,6 +143,7 @@ def add_slot(meeting_id: str, slot: SlotCreate):
     slot_id = cursor.lastrowid
     conn.commit()
     conn.close()
+    save_json_backup()
     return {"status": "success", "slotId": slot_id}
 
 @app.get("/api/meetings/{meeting_id}")
@@ -200,6 +243,7 @@ def submit_response(meeting_id: str, payload: ParticipantResponseCreate):
         
     conn.commit()
     conn.close()
+    save_json_backup()
     return {"status": "success"}
 
 import socket
