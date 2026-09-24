@@ -8,7 +8,9 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
-DB_FILE = "meetings.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_FILE = os.path.join(BASE_DIR, "meetings.db")
+STATIC_INDEX = os.path.join(BASE_DIR, "static", "index.html")
 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
@@ -216,15 +218,30 @@ def get_local_ip():
 def get_info():
     return {"local_ip": get_local_ip(), "port": 8000}
 
+def get_index_path():
+    path1 = os.path.join(BASE_DIR, "static", "index.html")
+    path2 = os.path.join(BASE_DIR, "index.html")
+    if os.path.exists(path1):
+        return path1
+    if os.path.exists(path2):
+        return path2
+    return path1
+
 # Serve frontend HTML
 @app.get("/", response_class=HTMLResponse)
 def index():
-    with open("static/index.html", "r", encoding="utf-8") as f:
+    path = get_index_path()
+    if not os.path.exists(path):
+        raise HTTPException(status_code=500, detail=f"Fichier non trouve: {path}")
+    with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
 @app.get("/meeting/{meeting_id}", response_class=HTMLResponse)
 def meeting_page(meeting_id: str):
-    with open("static/index.html", "r", encoding="utf-8") as f:
+    path = get_index_path()
+    if not os.path.exists(path):
+        raise HTTPException(status_code=500, detail=f"Fichier non trouve: {path}")
+    with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
 if __name__ == "__main__":

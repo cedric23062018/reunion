@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Planificateur de Réunion Intelligente</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen pb-12">
+
+  <!-- Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="showCreateView()">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/30">
+          <i class="fa-solid fa-calendar-check"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight text-white">PlanifMeeting</h1>
+          <p class="text-xs text-slate-400">Trouvez le meilleur créneau en 1 clic</p>
+        </div>
+      </div>
+      <button onclick="showCreateView()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 px-3 py-2 rounded-lg font-medium transition">
+        <i class="fa-solid fa-plus mr-1"></i> Créer une nouvelle réunion
+      </button>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 pt-8">
+
+    <!-- VIEW 1: CREATE MEETING -->
+    <div id="create-view" class="space-y-6 max-w-2xl mx-auto">
+      <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-6 shadow-xl">
+        <h2 class="text-xl font-bold text-white mb-1 flex items-center">
+          <i class="fa-solid fa-calendar-plus text-indigo-400 mr-2"></i> Créer une nouvelle réunion
+        </h2>
+        <p class="text-slate-400 text-sm mb-6">Définissez le sujet et les créneaux proposés. Vous recevrez ensuite un lien à partager.</p>
+
+        <form id="create-form" onsubmit="handleCreateMeeting(event)" class="space-y-5">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Titre de la réunion *</label>
+            <input type="text" id="title" required placeholder="ex: Réunion d'équipe Projet Alpha" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-sm">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Description / Ordre du jour (optionnel)</label>
+            <textarea id="description" rows="2" placeholder="ex: Discussion sur le planning du trimestre et répartition des tâches." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-sm"></textarea>
+          </div>
+
+          <!-- Slots section -->
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <label class="text-xs font-semibold uppercase tracking-wider text-slate-300">Créneaux proposés (plusieurs possibles par jour)</label>
+              <button type="button" onclick="addSlotInput()" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">
+                <i class="fa-solid fa-plus-circle mr-1"></i> Ajouter un créneau
+              </button>
+            </div>
+            
+            <div id="slots-container" class="space-y-3">
+              <!-- Slot Item Template inserted by JS -->
+            </div>
+          </div>
+
+          <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3.5 px-6 rounded-xl shadow-lg shadow-indigo-600/30 transition flex items-center justify-center space-x-2 text-sm mt-4">
+            <i class="fa-solid fa-rocket"></i>
+            <span>Générer le sondage & le lien</span>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- VIEW 2: MEETING DETAIL & VOTING -->
+    <div id="meeting-view" class="hidden space-y-8">
+      
+      <!-- Banner / Details Card -->
+      <div class="bg-gradient-to-r from-slate-800 to-slate-850 border border-slate-700 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 mb-2">
+              Sondage Actif
+            </div>
+            <h2 id="m-title" class="text-2xl font-bold text-white mb-1">Titre de la réunion</h2>
+            <p id="m-desc" class="text-slate-400 text-sm">Description de la réunion...</p>
+          </div>
+          
+          <!-- Share Link & Add Slot Box -->
+          <div class="flex items-center space-x-2 shrink-0">
+            <button onclick="openAddSlotModal()" class="bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/40 text-xs px-3 py-2 rounded-xl font-medium transition flex items-center space-x-1.5 shadow">
+              <i class="fa-solid fa-calendar-plus text-indigo-400"></i>
+              <span>Proposer un créneau</span>
+            </button>
+
+            <div class="bg-slate-900/90 border border-slate-700/80 rounded-xl p-3 flex items-center space-x-3">
+              <div class="text-xs text-slate-400 hidden sm:block">
+                <span class="block font-semibold text-white">Lien de partage</span>
+                <span class="text-[10px] text-slate-500">Copiez et envoyez aux invités</span>
+              </div>
+              <button onclick="copyShareLink()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-3 py-2 rounded-lg font-medium transition flex items-center space-x-1 shadow">
+                <i class="fa-solid fa-copy"></i>
+                <span id="copy-text">Copier le lien</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ALGORITHM WINNER HIGHLIGHT CARD -->
+      <div id="algorithm-card" class="bg-gradient-to-br from-emerald-950/60 to-slate-900 border border-emerald-500/40 rounded-2xl p-6 shadow-xl relative">
+        <div class="flex items-start justify-between flex-wrap gap-4">
+          <div class="flex items-center space-x-3">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-2xl shrink-0">
+              <i class="fa-solid fa-award"></i>
+            </div>
+            <div>
+              <div class="flex items-center space-x-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Algorithme d'optimisation</span>
+                <span id="best-badge" class="bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-emerald-500/30">Meilleur créneau trouvé ⭐</span>
+              </div>
+              <h3 id="best-slot-time" class="text-xl font-bold text-white mt-0.5">Calcul en cours...</h3>
+              <p id="best-slot-details" class="text-slate-300 text-xs mt-1">Basé sur les disponibilités de l'ensemble de l'équipe.</p>
+            </div>
+          </div>
+          <div id="best-slot-stats" class="bg-slate-900/80 border border-slate-700/80 rounded-xl px-4 py-3 flex items-center space-x-4">
+            <div class="text-center">
+              <span class="block text-xs text-slate-400">Taux de présence</span>
+              <span id="best-percentage" class="text-lg font-bold text-emerald-400">0%</span>
+            </div>
+            <div class="h-8 w-px bg-slate-700"></div>
+            <div class="text-center">
+              <span class="block text-xs text-slate-400">Disponibles</span>
+              <span id="best-counts" class="text-sm font-semibold text-white">0 dispo</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- LEFT: Participant Input Form -->
+        <div class="lg:col-span-1 space-y-6">
+          <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-6 shadow-xl sticky top-24">
+            <h3 class="text-lg font-bold text-white mb-1 flex items-center">
+              <i class="fa-solid fa-user-check text-indigo-400 mr-2"></i> Indiquer mes disponibilités
+            </h3>
+            <p class="text-xs text-slate-400 mb-5">Remplissez votre nom et sélectionnez votre statut pour chaque horaire.</p>
+
+            <form id="vote-form" onsubmit="handleVoteSubmit(event)" class="space-y-4">
+              <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Votre Prénom / Nom *</label>
+                <input type="text" id="participant-name" required placeholder="ex: Thomas Dupont" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-sm">
+              </div>
+
+              <div class="space-y-3 pt-2">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300">Vos choix par créneau :</label>
+                <div id="vote-slots-list" class="space-y-3 max-h-96 overflow-y-auto pr-1">
+                  <!-- Vote slots dynamically loaded -->
+                </div>
+              </div>
+
+              <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-emerald-600/20 transition flex items-center justify-center space-x-2 text-sm mt-4">
+                <i class="fa-solid fa-check"></i>
+                <span>Enregistrer mes disponibilités</span>
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <!-- RIGHT: Transparent Matrix & Full Ranking -->
+        <div class="lg:col-span-2 space-y-8">
+          
+          <!-- MATRIX VIEW TABLE -->
+          <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-6 shadow-xl">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-lg font-bold text-white flex items-center">
+                  <i class="fa-solid fa-table-cells text-indigo-400 mr-2"></i> Vue synthétique des disponibilités
+                </h3>
+                <p class="text-xs text-slate-400">Transparence totale : voyez les choix de chaque membre de l'équipe.</p>
+              </div>
+              <div class="text-xs text-slate-400 flex items-center space-x-3">
+                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-1.5"></span> Dispo</span>
+                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 mr-1.5"></span> Peut-être</span>
+                <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-rose-500 mr-1.5"></span> Non dispo</span>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-700">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-slate-900/90 text-xs text-slate-300 border-b border-slate-700">
+                  <tr>
+                    <th class="p-3 font-semibold min-w-[140px] sticky left-0 bg-slate-900 z-10 border-r border-slate-700">Participant</th>
+                    <th id="matrix-headers-container" class="p-0" colspan="100">
+                      <!-- Slot columns dynamically generated -->
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="matrix-body" class="divide-y divide-slate-700/60 bg-slate-800/40">
+                  <!-- Rows generated dynamically -->
+                </tbody>
+                <tfoot id="matrix-footer" class="bg-slate-900/80 border-t-2 border-slate-700 font-medium text-xs">
+                  <!-- Totals generated dynamically -->
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <!-- FULL RANKING BY ALGORITHM -->
+          <div class="bg-slate-800/80 border border-slate-700 rounded-2xl p-6 shadow-xl">
+            <h3 class="text-lg font-bold text-white mb-1 flex items-center">
+              <i class="fa-solid fa-list-ol text-indigo-400 mr-2"></i> Classement des créneaux par pertinence
+            </h3>
+            <p class="text-xs text-slate-400 mb-4">Calculé par l'algorithme selon le niveau d'adhésion du groupe.</p>
+
+            <div id="ranking-list" class="space-y-3">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <script>
+    let currentMeeting = null;
+    let slotCount = 0;
+
+    // INITIALIZATION
+    window.addEventListener('DOMContentLoaded', () => {
+      const pathParts = window.location.pathname.split('/');
+      const meetingId = pathParts[pathParts.length - 1] || new URLSearchParams(window.location.search).get('id');
+
+      if (meetingId && meetingId !== 'index.html' && meetingId !== '') {
+        loadMeeting(meetingId);
+      } else {
+        showCreateView();
+        // Add 2 default slot inputs
+        addSlotInput(getTodayString(), "09:00", "10:00");
+        addSlotInput(getTodayString(), "14:00", "15:00");
+      }
+    });
+
+    function getTodayString() {
+      const today = new Date();
+      return today.toISOString().split('T')[0];
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '';
+      const d = new Date(dateStr + 'T00:00:00');
+      return d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    function showCreateView() {
+      document.getElementById('create-view').classList.remove('hidden');
+      document.getElementById('meeting-view').classList.add('hidden');
+      window.history.pushState({}, '', '/');
+    }
+
+    function addSlotInput(date = '', startTime = '09:00', endTime = '10:00') {
+      slotCount++;
+      const container = document.getElementById('slots-container');
+      const div = document.createElement('div');
+      div.id = `slot-row-${slotCount}`;
+      div.className = "flex items-center gap-2 bg-slate-900/60 p-3 rounded-xl border border-slate-700/80";
+      div.innerHTML = `
+        <div class="flex-1 grid grid-cols-3 gap-2">
+          <div>
+            <span class="text-[10px] text-slate-400 block mb-0.5">Date</span>
+            <input type="date" value="${date || getTodayString()}" required class="slot-date w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+          </div>
+          <div>
+            <span class="text-[10px] text-slate-400 block mb-0.5">Début</span>
+            <input type="time" value="${startTime}" required class="slot-start w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+          </div>
+          <div>
+            <span class="text-[10px] text-slate-400 block mb-0.5">Fin</span>
+            <input type="time" value="${endTime}" required class="slot-end w-full bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white">
+          </div>
+        </div>
+        <button type="button" onclick="removeSlotInput('slot-row-${slotCount}')" class="text-slate-500 hover:text-rose-400 p-2 text-sm transition">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      `;
+      container.appendChild(div);
+    }
+
+    function removeSlotInput(rowId) {
+      const container = document.getElementById('slots-container');
+      if (container.children.length > 1) {
+        const elem = document.getElementById(rowId);
+        if (elem) elem.remove();
+      } else {
+        alert("Vous devez laisser au moins un créneau.");
+      }
+    }
+
+    async function handleCreateMeeting(e) {
+      e.preventDefault();
+      const title = document.getElementById('title').value.trim();
+      const description = document.getElementById('description').value.trim();
+      
+      const dates = document.querySelectorAll('.slot-date');
+      const starts = document.querySelectorAll('.slot-start');
+      const ends = document.querySelectorAll('.slot-end');
+
+      const slots = [];
+      for (let i = 0; i < dates.length; i++) {
+        slots.push({
+          date: dates[i].value,
+          startTime: starts[i].value,
+          endTime: ends[i].value
+        });
+      }
+
+      try {
+        const res = await fetch('/api/meetings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, description, slots })
+        });
+        const data = await res.json();
+        if (data.id) {
+          window.history.pushState({}, '', `/meeting/${data.id}`);
+          loadMeeting(data.id);
+        }
+      } catch (err) {
+        alert("Erreur lors de la création de la réunion: " + err.message);
+      }
+    }
+
+    async function loadMeeting(id) {
+      try {
+        const res = await fetch(`/api/meetings/${id}`);
+        if (!res.ok) {
+          showCreateView();
+          return;
+        }
+        currentMeeting = await res.json();
+
+        document.getElementById('create-view').classList.add('hidden');
+        document.getElementById('meeting-view').classList.remove('hidden');
+
+        // Populate meeting details
+        document.getElementById('m-title').textContent = currentMeeting.title;
+        document.getElementById('m-desc').textContent = currentMeeting.description || 'Aucune description fournie.';
+
+        // Render Algorithm Winner
+        renderBestSlot(currentMeeting);
+
+        // Render Participant Voting Form
+        renderVotingForm(currentMeeting.slots);
+
+        // Render Matrix Table
+        renderMatrix(currentMeeting);
+
+        // Render Full Ranking List
+        renderRanking(currentMeeting.rankedSlots);
+
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderBestSlot(meeting) {
+      const best = meeting.bestSlot;
+      if (!best || meeting.participants.length === 0) {
+        document.getElementById('best-slot-time').textContent = "En attente des premières réponses...";
+        document.getElementById('best-slot-details').textContent = "Partagez le lien pour que les participants indiquent leurs disponibilités.";
+        document.getElementById('best-percentage').textContent = "0%";
+        document.getElementById('best-counts').textContent = "0 vote";
+        return;
+      }
+
+      const s = best.slot;
+      document.getElementById('best-slot-time').textContent = `${formatDate(s.date)} — ${s.startTime} à ${s.endTime}`;
+      document.getElementById('best-slot-details').textContent = `Top créneau sélectionné par l'algorithme (${best.score} pts)`;
+      document.getElementById('best-percentage').textContent = `${best.percentage}%`;
+      document.getElementById('best-counts').textContent = `${best.availableCount} dispo, ${best.maybeCount} peut-être`;
+    }
+
+    function renderVotingForm(slots) {
+      const container = document.getElementById('vote-slots-list');
+      container.innerHTML = '';
+
+      slots.forEach(s => {
+        const div = document.createElement('div');
+        div.className = "bg-slate-900/80 p-3 rounded-xl border border-slate-700/80 flex flex-col space-y-2";
+        div.innerHTML = `
+          <div class="text-xs font-semibold text-white flex items-center justify-between">
+            <span><i class="fa-regular fa-clock text-indigo-400 mr-1.5"></i> ${formatDate(s.date)}</span>
+            <span class="text-slate-400">${s.startTime} - ${s.endTime}</span>
+          </div>
+          <div class="grid grid-cols-3 gap-1.5">
+            <label class="cursor-pointer">
+              <input type="radio" name="slot-${s.id}" value="available" checked class="peer sr-only">
+              <div class="peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-500 bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-medium py-1.5 rounded-lg text-center transition flex items-center justify-center space-x-1">
+                <i class="fa-solid fa-check text-[10px]"></i>
+                <span>Dispo</span>
+              </div>
+            </label>
+
+            <label class="cursor-pointer">
+              <input type="radio" name="slot-${s.id}" value="maybe" class="peer sr-only">
+              <div class="peer-checked:bg-amber-600 peer-checked:text-white peer-checked:border-amber-500 bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-medium py-1.5 rounded-lg text-center transition flex items-center justify-center space-x-1">
+                <i class="fa-solid fa-question text-[10px]"></i>
+                <span>Peut-être</span>
+              </div>
+            </label>
+
+            <label class="cursor-pointer">
+              <input type="radio" name="slot-${s.id}" value="unavailable" class="peer sr-only">
+              <div class="peer-checked:bg-rose-600 peer-checked:text-white peer-checked:border-rose-500 bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-medium py-1.5 rounded-lg text-center transition flex items-center justify-center space-x-1">
+                <i class="fa-solid fa-xmark text-[10px]"></i>
+                <span>Non</span>
+              </div>
+            </label>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function handleVoteSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('participant-name').value.trim();
+      if (!name) return;
+
+      const votes = [];
+      currentMeeting.slots.forEach(s => {
+        const checked = document.querySelector(`input[name="slot-${s.id}"]:checked`);
+        votes.push({
+          slotId: s.id,
+          status: checked ? checked.value : 'unavailable'
+        });
+      });
+
+      try {
+        const res = await fetch(`/api/meetings/${currentMeeting.id}/responses`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ participantName: name, votes })
+        });
+        if (res.ok) {
+          loadMeeting(currentMeeting.id);
+        }
+      } catch (err) {
+        alert("Erreur enregistrement : " + err.message);
+      }
+    }
+
+    function renderMatrix(meeting) {
+      const headerContainer = document.getElementById('matrix-headers-container');
+      const body = document.getElementById('matrix-body');
+      const footer = document.getElementById('matrix-footer');
+
+      // 1. Build Header Slot Columns
+      let headerHTML = `<div class="grid" style="grid-template-columns: repeat(${meeting.slots.length}, minmax(110px, 1fr));">`;
+      meeting.slots.forEach(s => {
+        const isBest = meeting.bestSlot && meeting.bestSlot.slot.id === s.id;
+        headerHTML += `
+          <div class="p-2.5 text-center border-r border-slate-700 ${isBest ? 'bg-emerald-950/60 text-emerald-300' : ''}">
+            <div class="text-[10px] text-slate-400 uppercase tracking-wider">${formatDate(s.date)}</div>
+            <div class="font-bold text-white text-xs mt-0.5">${s.startTime} - ${s.endTime}</div>
+            ${isBest ? '<span class="inline-block mt-1 text-[9px] bg-emerald-500/30 text-emerald-300 px-1.5 py-0.2 rounded">TOP ⭐</span>' : ''}
+          </div>
+        `;
+      });
+      headerHTML += `</div>`;
+      headerContainer.innerHTML = headerHTML;
+
+      // 2. Build Participant Rows
+      body.innerHTML = '';
+      if (meeting.participants.length === 0) {
+        body.innerHTML = `
+          <tr>
+            <td colspan="100" class="p-6 text-center text-slate-500 text-xs italic">
+              Aucun participant n'a encore renseigné ses disponibilités. Soyez le premier !
+            </td>
+          </tr>
+        `;
+      } else {
+        meeting.participants.forEach(p => {
+          const tr = document.createElement('tr');
+          
+          let rowHTML = `
+            <td class="p-3 font-medium text-white text-xs sticky left-0 bg-slate-800 border-r border-slate-700 flex items-center space-x-2">
+              <div class="w-6 h-6 rounded-full bg-indigo-600/30 text-indigo-300 text-[10px] flex items-center justify-center font-bold">
+                ${p.charAt(0).toUpperCase()}
+              </div>
+              <span class="truncate">${p}</span>
+            </td>
+            <td class="p-0" colspan="100">
+              <div class="grid" style="grid-template-columns: repeat(${meeting.slots.length}, minmax(110px, 1fr));">
+          `;
+
+          meeting.slots.forEach(s => {
+            const status = meeting.matrix[p] ? meeting.matrix[p][s.id] : 'unavailable';
+            let badge = '';
+            if (status === 'available') {
+              badge = `<span class="w-full py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-semibold flex items-center justify-center space-x-1"><i class="fa-solid fa-check"></i><span>Dispo</span></span>`;
+            } else if (status === 'maybe') {
+              badge = `<span class="w-full py-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[11px] font-semibold flex items-center justify-center space-x-1"><i class="fa-solid fa-question"></i><span>Peut-être</span></span>`;
+            } else {
+              badge = `<span class="w-full py-1.5 rounded-lg bg-rose-500/10 text-rose-400/80 border border-rose-500/20 text-[11px] flex items-center justify-center space-x-1"><i class="fa-solid fa-xmark"></i><span>Non</span></span>`;
+            }
+
+            rowHTML += `<div class="p-2 border-r border-slate-700/60 flex items-center justify-center">${badge}</div>`;
+          });
+
+          rowHTML += `</div></td>`;
+          tr.innerHTML = rowHTML;
+          body.appendChild(tr);
+        });
+      }
+
+      // 3. Build Footer Summary Row
+      let footerHTML = `
+        <tr>
+          <td class="p-3 font-semibold text-slate-300 text-xs sticky left-0 bg-slate-900 border-r border-slate-700">
+            Total Disponibilités
+          </td>
+          <td class="p-0" colspan="100">
+            <div class="grid" style="grid-template-columns: repeat(${meeting.slots.length}, minmax(110px, 1fr));">
+      `;
+
+      meeting.slots.forEach(s => {
+        const stat = meeting.rankedSlots.find(rs => rs.slot.id === s.id);
+        const avail = stat ? stat.availableCount : 0;
+        const maybe = stat ? stat.maybeCount : 0;
+        footerHTML += `
+          <div class="p-2.5 text-center border-r border-slate-700">
+            <div class="text-emerald-400 font-bold text-xs">${avail} Dispo</div>
+            <div class="text-slate-400 text-[10px]">${maybe} Peut-être</div>
+          </div>
+        `;
+      });
+
+      footerHTML += `</div></td></tr>`;
+      footer.innerHTML = footerHTML;
+    }
+
+    function renderRanking(rankedSlots) {
+      const container = document.getElementById('ranking-list');
+      container.innerHTML = '';
+
+      if (!rankedSlots || rankedSlots.length === 0) return;
+
+      rankedSlots.forEach((rs, index) => {
+        const s = rs.slot;
+        const isWinner = index === 0;
+
+        const div = document.createElement('div');
+        div.className = `p-4 rounded-xl border flex items-center justify-between gap-4 ${
+          isWinner ? 'bg-emerald-950/40 border-emerald-500/50 shadow-md' : 'bg-slate-900/60 border-slate-700/80'
+        }`;
+
+        div.innerHTML = `
+          <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-lg ${isWinner ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-400'} font-bold text-xs flex items-center justify-center shrink-0">
+              #${index + 1}
+            </div>
+            <div>
+              <div class="text-sm font-bold text-white">${formatDate(s.date)} — ${s.startTime} à ${s.endTime}</div>
+              <div class="text-xs text-slate-400 mt-0.5">
+                <span class="text-emerald-400 font-medium">${rs.availableCount} disponible(s)</span> • 
+                <span class="text-amber-400">${rs.maybeCount} si besoin</span> • 
+                <span class="text-rose-400">${rs.unavailableCount} indisponible(s)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="text-right shrink-0">
+            <div class="text-sm font-bold ${isWinner ? 'text-emerald-400' : 'text-slate-300'}">${rs.percentage}%</div>
+            <div class="w-24 bg-slate-800 h-2 rounded-full overflow-hidden mt-1 border border-slate-700">
+              <div class="bg-emerald-500 h-full rounded-full" style="width: ${rs.percentage}%"></div>
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function copyShareLink() {
+      let shareUrl = window.location.href;
+      
+      // If creator opened 127.0.0.1 / localhost, automatically replace with actual network IP so others can join
+      if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+        try {
+          const res = await fetch('/api/info');
+          const info = await res.json();
+          if (info.local_ip && info.local_ip !== '127.0.0.1') {
+            shareUrl = `${window.location.protocol}//${info.local_ip}:${info.port}${window.location.pathname}`;
+          }
+        } catch (e) {}
+      }
+
+      navigator.clipboard.writeText(shareUrl);
+      const btnText = document.getElementById('copy-text');
+      btnText.textContent = "Lien copié !";
+      setTimeout(() => btnText.textContent = "Copier le lien", 2500);
+    }
+
+    function openAddSlotModal() {
+      document.getElementById('add-slot-modal').classList.remove('hidden');
+      document.getElementById('new-slot-date').value = getTodayString();
+    }
+
+    function closeAddSlotModal() {
+      document.getElementById('add-slot-modal').classList.add('hidden');
+    }
+
+    async function handleAddSlotSubmit(e) {
+      e.preventDefault();
+      if (!currentMeeting) return;
+
+      const date = document.getElementById('new-slot-date').value;
+      const startTime = document.getElementById('new-slot-start').value;
+      const endTime = document.getElementById('new-slot-end').value;
+
+      try {
+        const res = await fetch(`/api/meetings/${currentMeeting.id}/slots`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date, startTime, endTime })
+        });
+        if (res.ok) {
+          closeAddSlotModal();
+          loadMeeting(currentMeeting.id);
+        } else {
+          alert("Erreur lors de l'ajout du créneau.");
+        }
+      } catch (err) {
+        alert("Erreur : " + err.message);
+      }
+    }
+  </script>
+
+  <!-- MODAL: ADD NEW SLOT FOR PARTICIPANT -->
+  <div id="add-slot-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+      <button onclick="closeAddSlotModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <h3 class="text-lg font-bold text-white mb-1 flex items-center">
+        <i class="fa-solid fa-calendar-plus text-indigo-400 mr-2"></i> Proposer un nouveau créneau
+      </h3>
+      <p class="text-xs text-slate-400 mb-5">Ajoutez une option de date/heure supplémentaire à ce sondage.</p>
+
+      <form onsubmit="handleAddSlotSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Date *</label>
+          <input type="date" id="new-slot-date" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white text-sm">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Heure de début *</label>
+            <input type="time" id="new-slot-start" value="09:00" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white text-sm">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1">Heure de fin *</label>
+            <input type="time" id="new-slot-end" value="10:00" required class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white text-sm">
+          </div>
+        </div>
+
+        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg shadow-indigo-600/30 transition text-sm mt-2">
+          Ajouter ce créneau au sondage
+        </button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
