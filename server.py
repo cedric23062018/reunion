@@ -305,6 +305,7 @@ def index():
         return f.read()
 
 @app.get("/meeting/{meeting_id}", response_class=HTMLResponse)
+@app.get("/m/{meeting_id}", response_class=HTMLResponse)
 def meeting_page(meeting_id: str):
     path = get_index_path()
     if not os.path.exists(path):

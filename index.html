@@ -631,7 +631,8 @@
     }
 
     async function copyShareLink() {
-      let shareUrl = window.location.href;
+      if (!currentMeeting) return;
+      let shareUrl = `${window.location.origin}/m/${currentMeeting.id}`;
       
       // If creator opened 127.0.0.1 / localhost, automatically replace with actual network IP so others can join
       if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
@@ -639,14 +640,14 @@
           const res = await fetch('/api/info');
           const info = await res.json();
           if (info.local_ip && info.local_ip !== '127.0.0.1') {
-            shareUrl = `${window.location.protocol}//${info.local_ip}:${info.port}${window.location.pathname}`;
+            shareUrl = `${window.location.protocol}//${info.local_ip}:${info.port}/m/${currentMeeting.id}`;
           }
         } catch (e) {}
       }
 
       navigator.clipboard.writeText(shareUrl);
       const btnText = document.getElementById('copy-text');
-      btnText.textContent = "Lien copié !";
+      btnText.textContent = "Lien court copié !";
       setTimeout(() => btnText.textContent = "Copier le lien", 2500);
     }
 
