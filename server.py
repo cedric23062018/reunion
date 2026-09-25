@@ -112,6 +112,30 @@ class ParticipantResponseCreate(BaseModel):
     participantName: str
     votes: List[VoteItem]
 
+class MeetingRestore(BaseModel):
+    id: str
+    title: str
+    description: Optional[str] = ""
+    slots: List[SlotCreate]
+
+@app.post("/api/meetings/restore")
+def restore_meeting(meeting: MeetingRestore):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("INSERT OR IGNORE INTO meetings (id, title, description) VALUES (?, ?, ?)",
+                   (meeting.id, meeting.title, meeting.description))
+    
+    cursor.execute("SELECT COUNT(*) FROM slots WHERE meeting_id = ?", (meeting.id,))
+    if cursor.fetchone()[0] == 0:
+        for s in meeting.slots:
+            cursor.execute("INSERT INTO slots (meeting_id, date_str, start_time, end_time) VALUES (?, ?, ?, ?)",
+                           (meeting.id, s.date, s.startTime, s.endTime))
+    
+    conn.commit()
+    conn.close()
+    save_json_backup()
+    return {"status": "success", "id": meeting.id}
+
 @app.post("/api/meetings")
 def create_meeting(meeting: MeetingCreate):
     meeting_id = str(uuid.uuid4())[:8]

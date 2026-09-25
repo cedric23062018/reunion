@@ -329,7 +329,8 @@
         });
         const data = await res.json();
         if (data.id) {
-          window.history.pushState({}, '', `/meeting/${data.id}`);
+          const hash = btoa(encodeURIComponent(JSON.stringify({ title, description, slots })));
+          window.history.pushState({}, '', `/meeting/${data.id}#d=${hash}`);
           loadMeeting(data.id);
         }
       } catch (err) {
@@ -339,13 +340,52 @@
 
     async function loadMeeting(id) {
       try {
-        const res = await fetch(`/api/meetings/${id}`);
+        let res = await fetch(`/api/meetings/${id}`);
+        
+        // Auto-restore attempt if server spun down and wiped ephemeral DB
+        if (!res.ok) {
+          const hash = window.location.hash;
+          if (hash && hash.includes('#d=')) {
+            try {
+              const rawHash = hash.split('#d=')[1];
+              const decoded = JSON.parse(decodeURIComponent(atob(rawHash)));
+              if (decoded && decoded.slots) {
+                const restoreRes = await fetch('/api/meetings/restore', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    id: id,
+                    title: decoded.title,
+                    description: decoded.description || '',
+                    slots: decoded.slots
+                  })
+                });
+                if (restoreRes.ok) {
+                  res = await fetch(`/api/meetings/${id}`);
+                }
+              }
+            } catch (e) {
+              console.error("Auto restore failed:", e);
+            }
+          }
+        }
+
         if (!res.ok) {
           alert("Cette réunion n'a pas été trouvée (le serveur s'est peut-être mis en veille). Vous pouvez recréer un sondage ci-dessous.");
           showCreateView();
           return;
         }
         currentMeeting = await res.json();
+        
+        // Keep hash in URL for share link persistence
+        if (currentMeeting.slots && (!window.location.hash || !window.location.hash.includes('#d='))) {
+          const hash = btoa(encodeURIComponent(JSON.stringify({
+            title: currentMeeting.title,
+            description: currentMeeting.description,
+            slots: currentMeeting.slots.map(s => ({ date: s.date, startTime: s.startTime, endTime: s.endTime }))
+          })));
+          window.history.replaceState({}, '', `/meeting/${id}#d=${hash}`);
+        }
 
         document.getElementById('create-view').classList.add('hidden');
         document.getElementById('meeting-view').classList.remove('hidden');
