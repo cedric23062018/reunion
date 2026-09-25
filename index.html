@@ -246,6 +246,13 @@
         addSlotInput(getTodayString(), "09:00", "10:00");
         addSlotInput(getTodayString(), "14:00", "15:00");
       }
+
+      // Refresh votes in real-time every 5 seconds
+      setInterval(() => {
+        if (currentMeeting && document.getElementById('meeting-view') && !document.getElementById('meeting-view').classList.contains('hidden')) {
+          loadMeeting(currentMeeting.id);
+        }
+      }, 5000);
     });
 
     function getTodayString() {
