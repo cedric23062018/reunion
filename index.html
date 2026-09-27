@@ -247,12 +247,36 @@
         addSlotInput(getTodayString(), "14:00", "15:00");
       }
 
-      // Refresh votes in real-time every 5 seconds
-      setInterval(() => {
-        if (currentMeeting && document.getElementById('meeting-view') && !document.getElementById('meeting-view').classList.contains('hidden')) {
-          loadMeeting(currentMeeting.id);
-        }
-      }, 5000);
+     // Refresh votes in real-time every 5 seconds
+// IMPORTANT : on ne recharge PAS le formulaire de vote,
+// sinon les choix en cours de saisie sont effacés.
+setInterval(async () => {
+  if (
+    currentMeeting &&
+    document.getElementById('meeting-view') &&
+    !document.getElementById('meeting-view').classList.contains('hidden')
+  ) {
+    try {
+      const res = await fetch(`/api/meetings/${currentMeeting.id}`);
+
+      if (res.ok) {
+        const updatedMeeting = await res.json();
+
+        // On met à jour les données
+        currentMeeting = updatedMeeting;
+
+        // On actualise uniquement ce qui est visible
+        // sans reconstruire le formulaire de vote.
+        renderBestSlot(currentMeeting);
+        renderMatrix(currentMeeting);
+        renderRanking(currentMeeting.rankedSlots);
+      }
+    } catch (err) {
+      console.error("Erreur de rafraîchissement :", err);
+    }
+  }
+}, 5000);
+
     });
 
     function getTodayString() {
