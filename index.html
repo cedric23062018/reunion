@@ -429,7 +429,7 @@
       }
 
       const s = best.slot;
-      document.getElementById('best-slot-time').textContent = `${formatDate(s.date)} — ${s.startTime} à ${s.endTime}`;
+      document.getElementById('best-slot-time').textContent = `${formatDate(s.date)} —checked ${s.startTime} à ${s.endTime}`;
       document.getElementById('best-slot-details').textContent = `Top créneau sélectionné par l'algorithme (${best.score} pts)`;
       document.getElementById('best-percentage').textContent = `${best.percentage}%`;
       document.getElementById('best-counts').textContent = `${best.availableCount} dispo, ${best.maybeCount} peut-être`;
