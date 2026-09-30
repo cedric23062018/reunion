@@ -458,7 +458,7 @@
           </div>
           <div class="grid grid-cols-3 gap-1.5">
             <label class="cursor-pointer">
-              <input type="radio" name="slot-${s.id}" value="available" ${choice === 'available' ? 'checked' : ''} onchange="userSelectedVotes[${s.id}] = 'available'" class="peer sr-only">
+              <input type="radio" name="slot-${s.id}" value="available" ${choice === 'available' ? 'checked' : ''} onchange="userSelectedVotes['${s.id}'] = 'available'" class="peer sr-only">
               <div class="peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-500 bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-medium py-1.5 rounded-lg text-center transition flex items-center justify-center space-x-1">
                 <i class="fa-solid fa-check text-[10px]"></i>
                 <span>Dispo</span>
@@ -466,7 +466,7 @@
             </label>
 
             <label class="cursor-pointer">
-              <input type="radio" name="slot-${s.id}" value="maybe" ${choice === 'maybe' ? 'checked' : ''} onchange="userSelectedVotes[${s.id}] = 'maybe'" class="peer sr-only">
+              <input type="radio" name="slot-${s.id}" value="maybe" ${choice === 'maybe' ? 'checked' : ''} onchange="userSelectedVotes['${s.id}'] = 'maybe'" class="peer sr-only">
               <div class="peer-checked:bg-amber-600 peer-checked:text-white peer-checked:border-amber-500 bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-medium py-1.5 rounded-lg text-center transition flex items-center justify-center space-x-1">
                 <i class="fa-solid fa-question text-[10px]"></i>
                 <span>Peut-être</span>
@@ -474,7 +474,7 @@
             </label>
 
             <label class="cursor-pointer">
-              <input type="radio" name="slot-${s.id}" value="unavailable" ${choice === 'unavailable' ? 'checked' : ''} onchange="userSelectedVotes[${s.id}] = 'unavailable'" class="peer sr-only">
+              <input type="radio" name="slot-${s.id}" value="unavailable" ${choice === 'unavailable' ? 'checked' : ''} onchange="userSelectedVotes['${s.id}'] = 'unavailable'" class="peer sr-only">
               <div class="peer-checked:bg-rose-600 peer-checked:text-white peer-checked:border-rose-500 bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-medium py-1.5 rounded-lg text-center transition flex items-center justify-center space-x-1">
                 <i class="fa-solid fa-xmark text-[10px]"></i>
                 <span>Non</span>
