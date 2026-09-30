@@ -16,7 +16,7 @@
   <!-- Header -->
   <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
     <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-      <div class="flex items-center spacc-x-3 cursor-pointer" onclick="showCreateView()">
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="showCreateView()">
         <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/30">
           <i class="fa-solid fa-calendar-check"></i>
         </div>
@@ -232,6 +232,7 @@
   <script>
     let currentMeeting = null;
     let slotCount = 0;
+    let userSelectedVotes = {};
 
     // INITIALIZATION
     window.addEventListener('DOMContentLoaded', () => {
@@ -239,7 +240,7 @@
       const meetingId = pathParts[pathParts.length - 1] || new URLSearchParams(window.location.search).get('id');
 
       if (meetingId && meetingId !== 'index.html' && meetingId !== '') {
-        loadMeeting(meetingId);
+        loadMeeting(meetingId, true);
       } else {
         showCreateView();
         // Add 2 default slot inputs
@@ -247,36 +248,12 @@
         addSlotInput(getTodayString(), "14:00", "15:00");
       }
 
-     // Refresh votes in real-time every 5 seconds
-// IMPORTANT : on ne recharge PAS le formulaire de vote,
-// sinon les choix en cours de saisie sont effacés.
-setInterval(async () => {
-  if (
-    currentMeeting &&
-    document.getElementById('meeting-view') &&
-    !document.getElementById('meeting-view').classList.contains('hidden')
-  ) {
-    try {
-      const res = await fetch(`/api/meetings/${currentMeeting.id}`);
-
-      if (res.ok) {
-        const updatedMeeting = await res.json();
-
-        // On met à jour les données
-        currentMeeting = updatedMeeting;
-
-        // On actualise uniquement ce qui est visible
-        // sans reconstruire le formulaire de vote.
-        renderBestSlot(currentMeeting);
-        renderMatrix(currentMeeting);
-        renderRanking(currentMeeting.rankedSlots);
-      }
-    } catch (err) {
-      console.error("Erreur de rafraîchissement :", err);
-    }
-  }
-}, 900000);
-
+      // Refresh votes in real-time every 5 seconds (ONLY update matrix/rankings, DO NOT wipe active voting form)
+      setInterval(() => {
+        if (currentMeeting && document.getElementById('meeting-view') && !document.getElementById('meeting-view').classList.contains('hidden')) {
+          loadMeeting(currentMeeting.id, false);
+        }
+      }, 5000);
     });
 
     function getTodayString() {
@@ -362,14 +339,14 @@ setInterval(async () => {
         if (data.id) {
           const hash = btoa(encodeURIComponent(JSON.stringify({ title, description, slots })));
           window.history.pushState({}, '', `/meeting/${data.id}#d=${hash}`);
-          loadMeeting(data.id);
+          loadMeeting(data.id, true);
         }
       } catch (err) {
         alert("Erreur lors de la création de la réunion: " + err.message);
       }
     }
 
-    async function loadMeeting(id) {
+    async function loadMeeting(id, isInitialLoad = true) {
       try {
         let res = await fetch(`/api/meetings/${id}`);
         
@@ -428,13 +405,14 @@ setInterval(async () => {
         // Render Algorithm Winner
         renderBestSlot(currentMeeting);
 
-        // Render Participant Voting Form
-        renderVotingForm(currentMeeting.slots);
+        // ONLY render form if it's initial load or if empty, NEVER during 5s background polls
+        const formContainer = document.getElementById('vote-slots-list');
+        if (isInitialLoad || !formContainer || formContainer.children.length === 0) {
+          renderVotingForm(currentMeeting.slots);
+        }
 
-        // Render Matrix Table
+        // Render Matrix Table & Rankings (these update live in background)
         renderMatrix(currentMeeting);
-
-        // Render Full Ranking List
         renderRanking(currentMeeting.rankedSlots);
 
       } catch (err) {
@@ -453,7 +431,7 @@ setInterval(async () => {
       }
 
       const s = best.slot;
-      document.getElementById('best-slot-time').textContent = `${formatDate(s.date)} —checked ${s.startTime} à ${s.endTime}`;
+      document.getElementById('best-slot-time').textContent = `${formatDate(s.date)} — ${s.startTime} à ${s.endTime}`;
       document.getElementById('best-slot-details').textContent = `Top créneau sélectionné par l'algorithme (${best.score} pts)`;
       document.getElementById('best-percentage').textContent = `${best.percentage}%`;
       document.getElementById('best-counts').textContent = `${best.availableCount} dispo, ${best.maybeCount} peut-être`;
@@ -463,7 +441,14 @@ setInterval(async () => {
       const container = document.getElementById('vote-slots-list');
       container.innerHTML = '';
 
+      // Restore saved participant name
+      const nameInput = document.getElementById('participant-name');
+      if (nameInput && !nameInput.value) {
+        nameInput.value = localStorage.getItem('participantName') || '';
+      }
+
       slots.forEach(s => {
+        const choice = userSelectedVotes[s.id] || 'available';
         const div = document.createElement('div');
         div.className = "bg-slate-900/80 p-3 rounded-xl border border-slate-700/80 flex flex-col space-y-2";
         div.innerHTML = `
@@ -473,7 +458,7 @@ setInterval(async () => {
           </div>
           <div class="grid grid-cols-3 gap-1.5">
             <label class="cursor-pointer">
-              <input type="radio" name="slot-${s.id}" value="available"  class="peer sr-only">
+              <input type="radio" name="slot-${s.id}" value="available" ${choice === 'available' ? 'checked' : ''} onchange="userSelectedVotes[${s.id}] = 'available'" class="peer sr-only">
               <div class="peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-500 bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-medium py-1.5 rounded-lg text-center transition flex items-center justify-center space-x-1">
                 <i class="fa-solid fa-check text-[10px]"></i>
                 <span>Dispo</span>
@@ -481,7 +466,7 @@ setInterval(async () => {
             </label>
 
             <label class="cursor-pointer">
-              <input type="radio" name="slot-${s.id}" value="maybe" class="peer sr-only">
+              <input type="radio" name="slot-${s.id}" value="maybe" ${choice === 'maybe' ? 'checked' : ''} onchange="userSelectedVotes[${s.id}] = 'maybe'" class="peer sr-only">
               <div class="peer-checked:bg-amber-600 peer-checked:text-white peer-checked:border-amber-500 bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-medium py-1.5 rounded-lg text-center transition flex items-center justify-center space-x-1">
                 <i class="fa-solid fa-question text-[10px]"></i>
                 <span>Peut-être</span>
@@ -489,7 +474,7 @@ setInterval(async () => {
             </label>
 
             <label class="cursor-pointer">
-              <input type="radio" name="slot-${s.id}" value="unavailable" class="peer sr-only">
+              <input type="radio" name="slot-${s.id}" value="unavailable" ${choice === 'unavailable' ? 'checked' : ''} onchange="userSelectedVotes[${s.id}] = 'unavailable'" class="peer sr-only">
               <div class="peer-checked:bg-rose-600 peer-checked:text-white peer-checked:border-rose-500 bg-slate-800 text-slate-300 border border-slate-700 text-[11px] font-medium py-1.5 rounded-lg text-center transition flex items-center justify-center space-x-1">
                 <i class="fa-solid fa-xmark text-[10px]"></i>
                 <span>Non</span>
@@ -503,15 +488,19 @@ setInterval(async () => {
 
     async function handleVoteSubmit(e) {
       e.preventDefault();
-      const name = document.getElementById('participant-name').value.trim();
+      const nameInput = document.getElementById('participant-name');
+      const name = nameInput.value.trim();
       if (!name) return;
+
+      localStorage.setItem('participantName', name);
 
       const votes = [];
       currentMeeting.slots.forEach(s => {
         const checked = document.querySelector(`input[name="slot-${s.id}"]:checked`);
+        const statusVal = checked ? checked.value : (userSelectedVotes[s.id] || 'available');
         votes.push({
           slotId: s.id,
-          status: checked ? checked.value : 'unavailable'
+          status: statusVal
         });
       });
 
@@ -522,7 +511,9 @@ setInterval(async () => {
           body: JSON.stringify({ participantName: name, votes })
         });
         if (res.ok) {
-          loadMeeting(currentMeeting.id);
+          userSelectedVotes = {}; // Clear transient draft after successful save
+          loadMeeting(currentMeeting.id, true);
+          alert("Vos disponibilités ont bien été enregistrées !");
         }
       } catch (err) {
         alert("Erreur enregistrement : " + err.message);
@@ -663,7 +654,17 @@ setInterval(async () => {
 
     async function copyShareLink() {
       if (!currentMeeting) return;
-      let shareUrl = `${window.location.origin}/m/${currentMeeting.id}`;
+      let hashPart = window.location.hash || '';
+      if (!hashPart && currentMeeting.slots) {
+        const hash = btoa(encodeURIComponent(JSON.stringify({
+          title: currentMeeting.title,
+          description: currentMeeting.description,
+          slots: currentMeeting.slots.map(s => ({ date: s.date, startTime: s.startTime, endTime: s.endTime }))
+        })));
+        hashPart = `#d=${hash}`;
+      }
+
+      let shareUrl = `${window.location.origin}/m/${currentMeeting.id}${hashPart}`;
       
       // If creator opened 127.0.0.1 / localhost, automatically replace with actual network IP so others can join
       if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
@@ -671,14 +672,14 @@ setInterval(async () => {
           const res = await fetch('/api/info');
           const info = await res.json();
           if (info.local_ip && info.local_ip !== '127.0.0.1') {
-            shareUrl = `${window.location.protocol}//${info.local_ip}:${info.port}/m/${currentMeeting.id}`;
+            shareUrl = `${window.location.protocol}//${info.local_ip}:${info.port}/m/${currentMeeting.id}${hashPart}`;
           }
         } catch (e) {}
       }
 
       navigator.clipboard.writeText(shareUrl);
       const btnText = document.getElementById('copy-text');
-      btnText.textContent = "Lien court copié !";
+      btnText.textContent = "Lien copié !";
       setTimeout(() => btnText.textContent = "Copier le lien", 2500);
     }
 
